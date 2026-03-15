@@ -64,7 +64,8 @@ app.use(morgan("dev"));
 app.use(limiter);
 app.use(passport.initialize());
 
-// ── Health ────────────────────────────────────────────────────────
+// ── Handle OPTIONS preflight for all routes ───────────────────────
+app.options("*", cors());
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Smart Career Platform API 🚀", timestamp: new Date().toISOString() });
 });
