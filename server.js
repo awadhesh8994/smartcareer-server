@@ -24,9 +24,9 @@ import notificationRoutes from "./routes/notification.routes.js";
 import adminRoutes        from "./routes/admin.routes.js";
 
 // ── Phase 2 Routes ────────────────────────────────────────────────
-import { jobsRouter }     from "./routes/jobs.routes.js";
-import recruiterRoutes    from "./routes/recruiter.routes.js";
-import interviewRoutes    from "./routes/interview.routes.js";
+import { jobsRouter }  from "./routes/jobs.routes.js";
+import recruiterRoutes from "./routes/recruiter.routes.js";
+import interviewRoutes from "./routes/interview.routes.js";
 
 const app = express();
 connectDB();
@@ -40,32 +40,26 @@ const limiter = rateLimit({
 
 // ── Middleware ────────────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(cors({
-  origin: (origin, callback) => {
-    const allowed = [
-      process.env.CLIENT_URL,
-      "http://localhost:5173",
-      "http://localhost:3000",
-    ].filter(Boolean);
-    // Allow requests with no origin (mobile apps, Postman)
-    if (!origin || allowed.some(o => origin.startsWith(o.replace(/\/$/, '')))) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+
+// CORS — allow all origins (JWT auth, no cookies needed)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(morgan("dev"));
 app.use(limiter);
 app.use(passport.initialize());
 
-// ── Handle OPTIONS preflight for all routes ───────────────────────
-app.options("*", cors());
+// ── Health ────────────────────────────────────────────────────────
+app.get("/", (req, res) => {
+  res.json({ success: true, message: "CareerAI API is running 🚀" });
+});
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Smart Career Platform API 🚀", timestamp: new Date().toISOString() });
 });
@@ -83,9 +77,9 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin",         adminRoutes);
 
 // ── Phase 2 Routes ────────────────────────────────────────────────
-app.use("/api/jobs",          jobsRouter);
-app.use("/api/recruiter",     recruiterRoutes);
-app.use("/api/interviews",    interviewRoutes);
+app.use("/api/jobs",       jobsRouter);
+app.use("/api/recruiter",  recruiterRoutes);
+app.use("/api/interviews", interviewRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -95,14 +89,14 @@ app.use((req, res) => {
 // ── Error Handler ─────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error("❌", err.message);
-  if (err.name === "ValidationError") {
+  if (err.name === "ValidationError")
     return res.status(400).json({ success: false, message: Object.values(err.errors).map(e => e.message).join(". ") });
-  }
-  if (err.code === 11000) {
+  if (err.code === 11000)
     return res.status(409).json({ success: false, message: `${Object.keys(err.keyValue)[0]} already exists.` });
-  }
-  if (err.name === "JsonWebTokenError") return res.status(401).json({ success: false, message: "Invalid token." });
-  if (err.name === "TokenExpiredError") return res.status(401).json({ success: false, message: "Token expired." });
+  if (err.name === "JsonWebTokenError")
+    return res.status(401).json({ success: false, message: "Invalid token." });
+  if (err.name === "TokenExpiredError")
+    return res.status(401).json({ success: false, message: "Token expired." });
   res.status(err.statusCode || 500).json({ success: false, message: err.message || "Internal Server Error" });
 });
 
