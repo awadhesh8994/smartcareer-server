@@ -27,6 +27,8 @@ import adminRoutes        from "./routes/admin.routes.js";
 import { jobsRouter }  from "./routes/jobs.routes.js";
 import recruiterRoutes from "./routes/recruiter.routes.js";
 import interviewRoutes from "./routes/interview.routes.js";
+import resourceRoutes from "./routes/resource.routes.js";
+
 
 const app = express();
 connectDB();
@@ -80,6 +82,7 @@ app.use("/api/admin",         adminRoutes);
 app.use("/api/jobs",       jobsRouter);
 app.use("/api/recruiter",  recruiterRoutes);
 app.use("/api/interviews", interviewRoutes);
+app.use("/api/resources", resourceRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────
 app.use((req, res) => {
