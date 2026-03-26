@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const resourceSchema = new mongoose.Schema({
   title: String,
   url: String,
-  type: { type: String, enum: ["video", "article", "course", "documentation", "practice"] },
+  type: { type: String }, // no enum — AI can generate any resource type
   platform: String, // "YouTube", "Coursera", "freeCodeCamp", etc.
   isFree: { type: Boolean, default: true },
   estimatedMinutes: Number,
