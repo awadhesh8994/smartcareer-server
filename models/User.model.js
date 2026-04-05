@@ -1,6 +1,23 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
+const normalizeExperienceLevel = (value) => {
+  const normalised = typeof value === "string" ? value.trim() : value;
+
+  switch (normalised) {
+    case "Fresher":
+      return "Student (Fresher)";
+    case "1-2 years":
+      return "1-3 years";
+    case "2-5 years":
+      return "3-5 years";
+    case "5+ years":
+      return "5-8 years";
+    default:
+      return normalised;
+  }
+};
+
 const educationSchema = new mongoose.Schema({
   degree:       { type: String, required: true },
   institution:  { type: String, required: true },
@@ -90,6 +107,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["Student (Fresher)", "0-1 years", "1-3 years", "3-5 years", "5-8 years", "8+ years"],
       default: "Student (Fresher)",
+      set: normalizeExperienceLevel,
     },
 
     // ── Completion ─────────────────────────────────────
@@ -114,6 +132,14 @@ const userSchema = new mongoose.Schema(
 userSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 12);
+});
+
+userSchema.pre("validate", function (next) {
+  if (this.experienceLevel) {
+    this.experienceLevel = normalizeExperienceLevel(this.experienceLevel);
+  }
+
+  next();
 });
 
 // ── Compare password ──────────────────────────────────────────────
