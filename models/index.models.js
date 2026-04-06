@@ -45,9 +45,7 @@ const forumSchema = new mongoose.Schema(
     title: { type: String, required: true, maxlength: 200 },
     body: { type: String, required: true, maxlength: 5000 },
     domain: {
-      type: String,
-      enum: ["DSA", "Web Development", "Machine Learning", "Cloud Computing",
-             "Career Advice", "Resume", "Interview", "General"],
+      type: String, // no enum — supports all fields
     },
     tags: [String],
     replies: [

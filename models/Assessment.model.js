@@ -23,14 +23,14 @@ const assessmentSchema = new mongoose.Schema(
     domain: {
       type: String,
       required: true,
-      enum: ["DSA", "Web Development", "Machine Learning", "Cloud Computing",
-             "Database", "System Design", "Python", "Java", "DevOps", "Cybersecurity"],
+      // No enum restriction — supports all fields (Tech, Law, Finance, Design, etc.)
     },
     questions: [questionSchema],
     answers: [answerSchema],
 
     // ── Results ─────────────────────────────────────
     totalQuestions: { type: Number },
+    generatedBy: { type: String, enum: ["static", "ai"], default: "static" },
     correctAnswers: { type: Number, default: 0 },
     score: { type: Number, default: 0 },        // percentage
     skillLevel: {

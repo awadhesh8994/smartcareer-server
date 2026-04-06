@@ -5,7 +5,6 @@ import Resume from "../models/Resume.model.js";
 import { checkATS, improveBulletPoint } from "../services/claude.service.js";
 import multer from "multer";
 
-// Memory storage for PDF parsing (no cloudinary needed)
 export const uploadResumeMemory = multer({
   storage: multer.memoryStorage(),
   limits:  { fileSize: 10 * 1024 * 1024 },
@@ -21,7 +20,7 @@ export const createResume = async (req, res, next) => {
     const count  = await Resume.countDocuments({ userId: req.user._id });
     const resume = await Resume.create({ ...req.body, userId: req.user._id, version: count + 1 });
     res.status(201).json({ success: true, data: resume });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
 };
 
 // ── GET /api/resumes ──────────────────────────────────────────────
@@ -29,7 +28,7 @@ export const getResumes = async (req, res, next) => {
   try {
     const resumes = await Resume.find({ userId: req.user._id }).sort({ createdAt: -1 });
     res.json({ success: true, data: resumes });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
 };
 
 // ── GET /api/resumes/:id ──────────────────────────────────────────
@@ -38,20 +37,50 @@ export const getResumeById = async (req, res, next) => {
     const resume = await Resume.findOne({ _id: req.params.id, userId: req.user._id });
     if (!resume) return res.status(404).json({ success: false, message: "Resume not found." });
     res.json({ success: true, data: resume });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
 };
 
-// ── PUT /api/resumes/:id ──────────────────────────────────────────
+// ── PUT /api/resumes/:id — full replace ───────────────────────────
 export const updateResume = async (req, res, next) => {
   try {
+    const { userId, _id, __v, createdAt, ...updateData } = req.body;
     const resume = await Resume.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      req.body,
-      { new: true, runValidators: true }
+      { $set: updateData },
+      { new: true, runValidators: false }
     );
     if (!resume) return res.status(404).json({ success: false, message: "Resume not found." });
     res.json({ success: true, data: resume });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
+};
+
+// ── PATCH /api/resumes/:id — partial update (safe merge) ──────────
+export const patchResume = async (req, res, next) => {
+  try {
+    // Build dot-notation $set to safely merge nested fields
+    const buildDotNotation = (obj, prefix = "") => {
+      return Object.entries(obj).reduce((acc, [key, val]) => {
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (val !== null && typeof val === "object" && !Array.isArray(val)) {
+          Object.assign(acc, buildDotNotation(val, path));
+        } else {
+          acc[path] = val;
+        }
+        return acc;
+      }, {});
+    };
+
+    const { userId, _id, __v, createdAt, updatedAt, ...fields } = req.body;
+    const dotFields = buildDotNotation(fields);
+
+    const resume = await Resume.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      { $set: dotFields },
+      { new: true, runValidators: false }
+    );
+    if (!resume) return res.status(404).json({ success: false, message: "Resume not found." });
+    res.json({ success: true, data: resume });
+  } catch (e) { next(e); }
 };
 
 // ── DELETE /api/resumes/:id ───────────────────────────────────────
@@ -59,7 +88,7 @@ export const deleteResume = async (req, res, next) => {
   try {
     await Resume.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
     res.json({ success: true, message: "Resume deleted." });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
 };
 
 // ── POST /api/resumes/:id/ats-score ──────────────────────────────
@@ -77,17 +106,27 @@ export const checkAtsScore = async (req, res, next) => {
       result = await checkATS({ resume, jobDescription });
     } catch (aiErr) {
       console.warn("⚠️  ATS check AI error:", aiErr.message);
-      result = { score: 50, missingKeywords: [], suggestions: ["Add more relevant keywords from the job description.", "Quantify your achievements with numbers.", "Match the exact job title in your resume."], sectionFeedback: {} };
+      result = {
+        score: 50,
+        missingKeywords: [],
+        suggestions: [
+          "Add more relevant keywords from the job description.",
+          "Quantify your achievements with numbers.",
+          "Match the exact job title in your resume.",
+        ],
+        sectionFeedback: {},
+      };
     }
 
-    resume.atsScore           = result.score;
-    resume.atsKeywordsMissing = result.missingKeywords || [];
-    resume.atsSuggestions     = result.suggestions || [];
-    resume.lastJobDescription = jobDescription;
-    await resume.save();
+    await Resume.findByIdAndUpdate(req.params.id, {
+      atsScore:           result.score,
+      atsKeywordsMissing: result.missingKeywords || [],
+      atsSuggestions:     result.suggestions || [],
+      lastJobDescription: jobDescription,
+    });
 
     res.json({ success: true, data: result });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
 };
 
 // ── POST /api/resumes/improve-bullet ─────────────────────────────
@@ -105,29 +144,16 @@ export const improveBullet = async (req, res, next) => {
       result = {
         original: bullet,
         improved: [
-          `Developed and implemented ${bullet.toLowerCase()}`,
-          `Successfully delivered ${bullet.toLowerCase()}, improving team efficiency`,
-          `Led initiative for ${bullet.toLowerCase()}, resulting in measurable outcomes`,
+          `Developed and implemented ${bullet.toLowerCase()} resulting in improved outcomes`,
+          `Successfully delivered ${bullet.toLowerCase()}, enhancing team efficiency by measurable impact`,
+          `Led initiative for ${bullet.toLowerCase()}, driving results across key metrics`,
         ],
-        tips: "Start with action verbs and quantify achievements.",
+        tips: "Start with strong action verbs and quantify your achievements.",
       };
     }
 
     res.json({ success: true, data: result });
-  } catch (error) { next(error); }
-};
-
-// ── GET /api/resumes/:id/export-pdf ──────────────────────────────
-export const exportPdf = async (req, res, next) => {
-  try {
-    const { pdfUrl } = req.body;
-    const resume = await Resume.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
-      { pdfUrl, lastExportedAt: new Date() },
-      { new: true }
-    );
-    res.json({ success: true, data: { pdfUrl: resume?.pdfUrl } });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
 };
 
 // ── POST /api/resumes/upload-parse ────────────────────────────────
@@ -137,5 +163,14 @@ export const uploadParsedResume = async (req, res, next) => {
     const pdfParse = require("pdf-parse");
     const parsed   = await pdfParse(req.file.buffer);
     res.json({ success: true, data: { text: parsed.text, pages: parsed.numpages } });
-  } catch (error) { next(error); }
+  } catch (e) { next(e); }
+};
+
+// ── GET /api/resumes/:id/export-pdf ──────────────────────────────
+export const exportPdf = async (req, res, next) => {
+  try {
+    const resume = await Resume.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!resume) return res.status(404).json({ success: false, message: "Resume not found." });
+    res.json({ success: true, data: resume });
+  } catch (e) { next(e); }
 };
