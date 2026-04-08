@@ -1,4 +1,4 @@
-import Resource from "../models/Resource.model.js";
+import Resource from "../models/resource.model.js";
 
 // ── GET /api/resources ────────────────────────────────────────────
 export const getResources = async (req, res, next) => {
