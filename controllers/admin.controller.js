@@ -3,6 +3,7 @@ import Assessment from "../models/Assessment.model.js";
 import Roadmap from "../models/Roadmap.model.js";
 import { Forum, AdminLog, Notification } from "../models/index.models.js";
 import mongoose from "mongoose";
+import { CLIENT_URL } from "../config/runtime.js";
 
 const questionSchema = new mongoose.Schema({
   domain:      { type: String, required: true },
@@ -80,7 +81,7 @@ export const approveRecruiter = async (req, res, next) => {
       await sendEmail({
         to:      user.email,
         subject: "Your Recruiter Account is Approved — CareerAI",
-        html:    `<h2>Welcome to CareerAI Recruiters!</h2><p>Hi ${user.name}, your recruiter account for <strong>${user.companyName}</strong> has been approved. You can now log in and start posting jobs.</p><a href="${process.env.CLIENT_URL}/login">Log in now →</a>`,
+        html:    `<h2>Welcome to CareerAI Recruiters!</h2><p>Hi ${user.name}, your recruiter account for <strong>${user.companyName}</strong> has been approved. You can now log in and start posting jobs.</p><a href="${CLIENT_URL}/login">Log in now →</a>`,
       });
     } catch {}
 

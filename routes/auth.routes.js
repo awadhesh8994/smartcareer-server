@@ -1,6 +1,7 @@
 import express from "express";
 import passport from "passport";
 import { protect, generateToken } from "../middleware/auth.middleware.js";
+import { CLIENT_URL } from "../config/runtime.js";
 import {
   register, login, getMe, forgotPassword, resetPassword,
 } from "../controllers/auth.controller.js";
@@ -19,22 +20,22 @@ router.get("/google",
 );
 
 router.get("/google/callback",
-  passport.authenticate("google", { failureRedirect: `${process.env.CLIENT_URL}/login?error=oauth`, session: false }),
+  passport.authenticate("google", { failureRedirect: `${CLIENT_URL}/login?error=oauth`, session: false }),
   (req, res) => {
     if (req.user?.role === "recruiter" && req.user?.recruiterStatus === "pending") {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?error=pending_recruiter`
+        `${CLIENT_URL}/login?error=pending_recruiter`
       );
     }
 
     if (req.user?.role === "recruiter" && req.user?.recruiterStatus === "rejected") {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?error=rejected_recruiter`
+        `${CLIENT_URL}/login?error=rejected_recruiter`
       );
     }
 
     const token = generateToken(req.user._id);
-    res.redirect(`${process.env.CLIENT_URL}/oauth-success?token=${token}`);
+    res.redirect(`${CLIENT_URL}/oauth-success?token=${token}`);
   }
 );
 
